@@ -72,10 +72,13 @@ class GeofenceRegion {
   final AndroidGeofencingSettings androidSettings;
 
   GeofenceRegion(
-      this.id, double latitude, double longitude, this.radius, this.triggers,
-      {AndroidGeofencingSettings androidSettings})
-      : location = Location(latitude, longitude),
-        androidSettings = (androidSettings ?? AndroidGeofencingSettings());
+    this.id,
+    double latitude,
+    double longitude,
+    this.radius,
+    this.triggers,
+    this.androidSettings,
+  ) : location = Location(latitude, longitude);
 
   List<dynamic> _toArgs() {
     final int triggerMask = triggers.fold(
@@ -102,10 +105,12 @@ class GeofencingManager {
 
   /// Initialize the plugin and request relevant permissions from the user.
   static Future<void> initialize() async {
-    final CallbackHandle callback =
+    final CallbackHandle? callback =
         PluginUtilities.getCallbackHandle(callbackDispatcher);
-    await _channel.invokeMethod('GeofencingPlugin.initializeService',
-        <dynamic>[callback.toRawHandle()]);
+    if (callback != null) {
+      await _channel.invokeMethod('GeofencingPlugin.initializeService',
+          <dynamic>[callback.toRawHandle()]);
+    }
   }
 
   /// Promote the geofencing service to a foreground service.
@@ -142,7 +147,7 @@ class GeofencingManager {
       throw UnsupportedError("iOS does not support 'GeofenceEvent.dwell'");
     }
     final List<dynamic> args = <dynamic>[
-      PluginUtilities.getCallbackHandle(callback).toRawHandle()
+      PluginUtilities.getCallbackHandle(callback)!.toRawHandle()
     ];
     args.addAll(region._toArgs());
     await _channel.invokeMethod('GeofencingPlugin.registerGeofence', args);
@@ -152,6 +157,19 @@ class GeofencingManager {
   static Future<List<String>> getRegisteredGeofenceIds() async =>
       List<String>.from(await _channel
           .invokeMethod('GeofencingPlugin.getRegisteredGeofenceIds'));
+
+  /// get all geofence regions and their properties
+  /// returns a [Map] with the following keys
+  /// [id] the identifier
+  /// [lat] latitude
+  /// [long] longitude
+  /// [radius] radius
+  ///
+  /// if there are no geofences registered it returns []
+  static Future<List<Map<dynamic, dynamic>>>
+  getRegisteredGeofenceRegions() async =>
+      List<Map<dynamic, dynamic>>.from(await _channel
+          .invokeMethod('GeofencingPlugin.getRegisteredGeofenceRegions'));
 
   /// Stop receiving geofence events for a given [GeofenceRegion].
   static Future<bool> removeGeofence(GeofenceRegion region) async =>
